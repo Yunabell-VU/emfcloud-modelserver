@@ -36,6 +36,7 @@ import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emfcloud.modelserver.command.CCommandExecutionResult;
 import org.eclipse.emfcloud.modelserver.common.codecs.EncodingException;
@@ -164,7 +165,7 @@ public class DefaultSessionController implements SessionController {
 
    @Override
    public void commandExecuted(final String modeluri, final Supplier<? extends CCommandExecutionResult> execution,
-      final Supplier<? extends JsonNode> patch) {
+      final Supplier<Map<URI, JsonNode>> patches) {
       Optional<EObject> root = modelRepository.getModel(modeluri);
       if (root.isEmpty()) {
          broadcastError(modeluri, "Could not load changed object");
@@ -178,10 +179,16 @@ public class DefaultSessionController implements SessionController {
          }
       }
 
-      if (hasV2Session(modeluri)) {
-         JsonNode v2Update = patch.get();
-         if (v2Update != null) {
-            broadcastIncrementalUpdatesV2(modeluri, v2Update);
+      Map<URI, JsonNode> map = patches.get();
+      if (map != null) {
+         for (Map.Entry<URI, JsonNode> entry : map.entrySet()) {
+            String patchModelUri = entry.getKey().toString();
+            if (hasV2Session(patchModelUri)) {
+               JsonNode v2Update = entry.getValue();
+               if (v2Update != null) {
+                  broadcastIncrementalUpdatesV2(patchModelUri, v2Update);
+               }
+            }
          }
       }
 
